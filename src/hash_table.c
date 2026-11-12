@@ -1,5 +1,7 @@
 #include <stddef.h>
+#include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include "hash_table.h"
 
 /* ---------- Função hash (H4) ---------- */
@@ -122,4 +124,108 @@ void tabela_destruir(TabelaHash *t)
     }
     free(t->buckets);
     free(t);
+}
+
+/* ---------- Operações ---------- */
+
+/*
+ * Procura o nó com o código (já normalizado) na cadeia do bucket.
+ * Retorna o nó ou NULL. Reaproveitada por buscar, atualizar e remover.
+ */
+static No *encontrar_no(const TabelaHash *t, const char *codigo)
+{
+    No *s = t->buckets[hash_dobra(codigo, t->m)];
+
+    for (No *atual = s->next; atual != s; atual = atual->next)
+    {
+        if (strcmp(atual->produto.codigo, codigo) == 0)
+            return atual;
+    }
+    return NULL;
+}
+
+Status tabela_inserir(TabelaHash *t, const char *codigo,
+                      const char *nome, int quantidade, double preco)
+{
+    char chave[CODIGO_MAX_DIGITOS + 1];
+
+    if (t == NULL || normalizar_codigo(codigo, chave) != OK)
+        return ERRO_CHAVE_INVALIDA;
+
+    if (encontrar_no(t, chave) != NULL)
+        return ERRO_DUPLICADA;
+
+    No *novo = malloc(sizeof(No));
+    if (novo == NULL)
+        return ERRO_MEMORIA;
+
+    strcpy(novo->produto.codigo, chave);
+    snprintf(novo->produto.nome, NOME_MAX, "%s", nome ? nome : "");
+    novo->produto.quantidade = quantidade;
+    novo->produto.preco = preco;
+
+    No *s = t->buckets[hash_dobra(chave, t->m)];
+
+    if (s->next != s) /* bucket já ocupado */
+        t->colisoes++;
+
+    /* insere no fim: entre o último nó (s->prev) e o sentinela */
+    novo->prev = s->prev;
+    novo->next = s;
+    s->prev->next = novo;
+    s->prev = novo;
+
+    t->n++;
+    return OK;
+}
+
+const Produto *tabela_buscar(const TabelaHash *t, const char *codigo)
+{
+    char chave[CODIGO_MAX_DIGITOS + 1];
+
+    if (t == NULL || normalizar_codigo(codigo, chave) != OK)
+        return NULL;
+
+    No *no = encontrar_no(t, chave);
+    return no ? &no->produto : NULL;
+}
+
+Status tabela_remover(TabelaHash *t, const char *codigo)
+{
+    char chave[CODIGO_MAX_DIGITOS + 1];
+
+    if (t == NULL || normalizar_codigo(codigo, chave) != OK)
+        return ERRO_CHAVE_INVALIDA;
+
+    No *no = encontrar_no(t, chave);
+    if (no == NULL)
+        return NAO_ENCONTRADO;
+
+    /* liga o anterior ao próximo, pulando o nó removido */
+    no->prev->next = no->next;
+    no->next->prev = no->prev;
+    free(no);
+
+    t->n--;
+    return OK;
+}
+
+Status tabela_atualizar(TabelaHash *t, const char *codigo,
+                        const char *nome, int quantidade, double preco)
+{
+    char chave[CODIGO_MAX_DIGITOS + 1];
+
+    if (t == NULL || normalizar_codigo(codigo, chave) != OK)
+        return ERRO_CHAVE_INVALIDA;
+
+    No *no = encontrar_no(t, chave);
+    if (no == NULL)
+        return NAO_ENCONTRADO;
+
+    /* só os dados mudam; codigo, prev e next ficam intactos */
+    snprintf(no->produto.nome, NOME_MAX, "%s", nome ? nome : "");
+    no->produto.quantidade = quantidade;
+    no->produto.preco = preco;
+
+    return OK;
 }
