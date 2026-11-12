@@ -229,3 +229,98 @@ Status tabela_atualizar(TabelaHash *t, const char *codigo,
 
     return OK;
 }
+
+/* ---------- Depuração e métricas ---------- */
+
+Estatisticas tabela_estatisticas(const TabelaHash *t)
+{
+    Estatisticas e = {0};
+
+    if (t == NULL)
+        return e;
+
+    e.n = t->n;
+    e.m = t->m;
+    e.colisoes = t->colisoes;
+    e.alfa = (double)t->n / (double)t->m;
+
+    for (unsigned long i = 0; i < t->m; i++)
+    {
+        No *s = t->buckets[i];
+        unsigned long tam = 0;
+
+        for (No *atual = s->next; atual != s; atual = atual->next)
+            tam++;
+
+        if (tam > 0)
+            e.ocupados++;
+        if (tam > e.cadeia_max)
+            e.cadeia_max = tam;
+    }
+
+    e.cadeia_media = (e.ocupados > 0) ? (double)e.n / (double)e.ocupados : 0.0;
+    return e;
+}
+
+void imprimir_estatisticas(const Estatisticas *e)
+{
+    printf("n = %lu | m = %lu | alfa = %.4f | colisoes = %lu | "
+           "ocupados = %lu | cadeia media = %.2f | cadeia max = %lu\n",
+           e->n, e->m, e->alfa, e->colisoes,
+           e->ocupados, e->cadeia_media, e->cadeia_max);
+}
+
+void tabela_exibir_estrutura(const TabelaHash *t, int mostrar_vazios)
+{
+    if (t == NULL)
+        return;
+
+    for (unsigned long i = 0; i < t->m; i++)
+    {
+        No *s = t->buckets[i];
+
+        if (s->next == s)
+        { /* bucket vazio */
+            if (mostrar_vazios)
+                printf("[%4lu] (vazio)\n", i);
+            continue;
+        }
+
+        printf("[%4lu] -> ", i);
+        for (No *atual = s->next; atual != s; atual = atual->next)
+        {
+            printf("%s", atual->produto.codigo);
+            if (atual->next != s)
+                printf(" <-> ");
+        }
+        printf("\n");
+    }
+
+    Estatisticas e = tabela_estatisticas(t);
+    imprimir_estatisticas(&e);
+}
+
+void tabela_listar(const TabelaHash *t)
+{
+    if (t == NULL)
+        return;
+
+    if (t->n == 0)
+    {
+        printf("Estoque vazio.\n");
+        return;
+    }
+
+    printf("%-14s %-30s %10s %12s\n", "Codigo", "Nome", "Quantidade", "Preco (R$)");
+    for (unsigned long i = 0; i < t->m; i++)
+    {
+        No *s = t->buckets[i];
+        for (No *atual = s->next; atual != s; atual = atual->next)
+        {
+            const Produto *p = &atual->produto;
+            printf("%-14s %-30s %10d %12.2f\n",
+                   p->codigo, p->nome, p->quantidade, p->preco);
+        }
+    }
+    printf("Total: %lu produto(s)\n", t->n);
+}

@@ -45,6 +45,18 @@ typedef struct
     unsigned long colisoes; /* contador de colisões */
 } TabelaHash;
 
+/* Métricas da tabela, usadas no menu, nos testes e no benchmark */
+typedef struct
+{
+    unsigned long n;          /* chaves armazenadas */
+    unsigned long m;          /* número de buckets */
+    double alfa;              /* fator de carga n / m */
+    unsigned long colisoes;   /* inserções que encontraram bucket ocupado */
+    unsigned long ocupados;   /* buckets com pelo menos 1 produto */
+    double cadeia_media;      /* n / ocupados (tamanho médio das cadeias não vazias) */
+    unsigned long cadeia_max; /* maior cadeia */
+} Estatisticas;
+
 /* ---------- Função hash (H4) ---------- */
 
 /*
@@ -127,5 +139,24 @@ Status tabela_remover(TabelaHash *t, const char *codigo);
  */
 Status tabela_atualizar(TabelaHash *t, const char *codigo,
                         const char *nome, int quantidade, double preco);
+
+/* ---------- Depuração e métricas ---------- */
+
+/*
+ * exibirEstrutura(): mostra cada bucket e sua cadeia, na ordem da lista.
+ * Ex.: [600] -> 100200300 <-> 300200100 <-> 200100300
+ * Com mostrar_vazios = 0, só os buckets ocupados são impressos
+ * (útil com m grande). Ao final, imprime as estatísticas.
+ */
+void tabela_exibir_estrutura(const TabelaHash *t, int mostrar_vazios);
+
+/* Lista todos os produtos: código, nome, quantidade e preço. */
+void tabela_listar(const TabelaHash *t);
+
+/* Calcula n, m, alfa, colisões, buckets ocupados e tamanho das cadeias. */
+Estatisticas tabela_estatisticas(const TabelaHash *t);
+
+/* Imprime as estatísticas numa linha. */
+void imprimir_estatisticas(const Estatisticas *e);
 
 #endif
