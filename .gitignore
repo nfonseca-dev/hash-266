@@ -1,0 +1,11 @@
+# binários
+estoque
+testes
+benchmark
+*.o
+*.out
+*.exe
+
+# editor/sistema
+.vscode/
+.DS_Store
